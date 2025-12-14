@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import PixelPlayer from './components/PixelPlayer.vue';
 import PixelPlaylist from './components/PixelPlayList.vue';
+import PixelLyrics from './components/PixelLyrics.vue';
 
 import { IconList } from '@pixelium/web-vue/icon-pa/es';
 
@@ -45,7 +46,8 @@ const closeSidebarMobile = () => {
       </PxAside>
 
       <PxMain class="main-style">
-        <PixelPlayer />
+        <PixelPlayer class="pixel-player"/>
+        <PixelLyrics class="pixel-lyrics"/>
       </PxMain>
 
     </PxContainer>
@@ -191,8 +193,18 @@ const closeSidebarMobile = () => {
   background-color: #888;
   height: 100%;
   overflow: hidden;
-  transition: all 0.3s;
   /* 它是跟着侧边栏一起动的，也可以加个过渡 */
+  transition: all 0.3s;
+  gap: 10px;
+}
+
+.pixel-player {
+  width:30%;
+}
+
+.pixel-lyrics{
+  width: 50%;
+  height: 80%;
 }
 
 .playlist-full-height {

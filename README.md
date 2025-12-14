@@ -5,7 +5,7 @@ Pixel Tune 是一个基于 Vue 3 + Vite 构建的复古像素风 Web 音乐播�
 <img src="/markdownImage/runtimeImage2.png" alt="Example Image" width="300" height="600" style="display: block; margin-left: auto; margin-right: auto;">
 
 ## 👨‍💻 todo
-1. 添加歌词显示
+1. 添加歌词显示(部分完成,待优化)
 2. 播放列表排序
 3. 爬虫与导入歌曲
 
@@ -68,7 +68,7 @@ src/
 
 ## 📄 License
 ```
-MIT License. Feel free to fork and make it your own!
+This project is licensed under the AGPL-3.0 License. You are free to use, modify, and distribute the software, but if you make any changes and deploy the software (even over a network), you must make the modified source code available to users under the same license.
 ```
 
 **由 tornadoSmallPig 开发与维护**

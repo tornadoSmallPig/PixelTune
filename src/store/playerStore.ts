@@ -13,13 +13,15 @@ export interface Song {
     name: string;
     url: string;     // 这个 URL 每次刷新都会变，只用于当前播放
     duration: number;
+    lyric?: string;  // 歌词原始文本 (可选)
 }
 
 // 定义存入数据库的数据结构 (不需要存 url，但需要存文件本体)
 interface SavedSong {
     id: string;
     name: string;
-    file: Blob; // 核心：存储二进制文件
+    file: Blob;     // 核心：存储二进制文件
+    lyric?: string; // 新增：保存时也存这个字符串
 }
 
 const ALLOWED_EXTENSIONS = ['mp3', 'flac', 'wav', 'ogg', 'm4a', 'aac']; // 定义允许的音频扩展名白名单 (全部小写)
@@ -51,6 +53,7 @@ export const usePlayerStore = defineStore('player', () => {
                     id: item.id,
                     name: item.name,
                     url: URL.createObjectURL(item.file),
+                    lyric: item.lyric || '',
                     duration: 0
                 }));
 
@@ -76,7 +79,8 @@ export const usePlayerStore = defineStore('player', () => {
         const dataToSave: SavedSong[] = playlist.value.map(song => ({
             id: song.id,
             name: song.name,
-            file: (window as any)._fileCache?.[song.id] // 这里有个小技巧，下面会讲
+            file: (window as any)._fileCache?.[song.id], // 这里有个小技巧，下面会讲
+            lyric: song.lyric,
         })).filter(item => item.file); // 过滤掉无效的
 
         await localforage.setItem('my_playlist', dataToSave);
@@ -107,53 +111,141 @@ export const usePlayerStore = defineStore('player', () => {
      * 添加音乐文件
      * @param files 文件列表
      */
-    const addFiles = (files: FileList) => {
+    // const addFiles = (files: FileList) => {
+    //     const newSongs: Song[] = [];
+
+    //     Array.from(files).forEach(file => {
+    //         // 获取文件名后缀
+    //         const parts = file.name.split('.');
+    //         const ext = parts.length > 1 ? parts.pop()?.toLowerCase() : '';
+
+    //         // 检查后缀是否在白名单中
+    //         // 或者使用 file.type.startsWith('audio/') 但有时候 wav/flac 的 type 可能为空，后缀判断更稳
+    //         if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
+    //             // 如果不是音频文件，直接跳过
+    //             return;
+    //         }
+
+    //         // 3. 检查当前列表里是否已经有同名歌曲
+    //         const isDuplicate = playlist.value.some(song => song.name === file.name);
+    //         if (isDuplicate) {
+    //             console.warn(`跳过重复歌曲: ${file.name}`);
+    //             return; // 跳过这一首
+    //         }
+
+    //         // 4. 生成唯一标识
+    //         const id = crypto.randomUUID();
+    //         const song: Song = {
+    //             id,
+    //             name: file.name,
+    //             url: URL.createObjectURL(file),
+    //             duration: 0
+    //         };
+
+    //         // 5. 缓存文件对象，用于保存
+    //         (window as any)._fileCache[id] = file;
+    //         newSongs.push(song);
+
+    //     });
+
+    //     playlist.value.push(...newSongs);
+
+    //     // 每次添加完自动保存
+    //     savePlaylist();
+
+    //     if (currentIndex.value === -1 && playlist.value.length > 0) {
+    //         currentIndex.value = 0;
+    //         const firstSong = playlist.value[0];
+    //         if (firstSong) {
+    //             loadSong(firstSong);
+    //         }
+    //     }
+    // };
+
+
+    /**
+     * 辅助函数：获取文件名（不含后缀）
+     * @param filename 
+     * @returns 
+     */
+    const getBaseName = (filename: string) => {
+        return filename.substring(0, filename.lastIndexOf('.'));
+    };
+    /**
+     * 添加文件（支持 音频 + LRC 自动匹配）
+     */
+    const addFiles = async (files: FileList) => {
         const newSongs: Song[] = [];
 
+        // 1. 分类：把文件分为 音频文件 和 歌词文件
+        const audioFiles: File[] = [];
+        const lrcMap = new Map<string, File>(); // Key: 文件名(无后缀), Value: File对象
+
         Array.from(files).forEach(file => {
-            // --- 核心过滤逻辑开始 ---
-            // 1. 获取文件名后缀
             const parts = file.name.split('.');
             const ext = parts.length > 1 ? parts.pop()?.toLowerCase() : '';
 
-            // 2. 检查后缀是否在白名单中
-            // 或者使用 file.type.startsWith('audio/') 但有时候 wav/flac 的 type 可能为空，后缀判断更稳
-            if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) {
-                // 如果不是音频文件，直接跳过
-                return;
+            if (!ext) return;
+
+            if (ALLOWED_EXTENSIONS.includes(ext)) {
+                audioFiles.push(file);
+            } else if (ext === 'lrc') {
+                // 如果是 lrc，存入 Map 方便查找
+                lrcMap.set(getBaseName(file.name), file);
             }
-
-            // 3. 检查当前列表里是否已经有同名歌曲
-            const isDuplicate = playlist.value.some(song => song.name === file.name);
-            if (isDuplicate) {
-                console.warn(`跳过重复歌曲: ${file.name}`);
-                return; // 跳过这一首
-            }
-
-            // 4. 生成唯一标识
-            const id = crypto.randomUUID();
-            const song: Song = {
-                id,
-                name: file.name,
-                url: URL.createObjectURL(file),
-                duration: 0
-            };
-
-            // 5. 缓存文件对象，用于保存
-            (window as any)._fileCache[id] = file;
-            newSongs.push(song);
         });
 
-        playlist.value.push(...newSongs);
+        if (audioFiles.length === 0) return;
 
-        // 每次添加完自动保存
-        savePlaylist();
+        // 2. 遍历音频文件，生成歌曲对象
+        // 使用 Promise.all 处理可能的异步读取操作
+        const processedSongs = await Promise.all(audioFiles.map(async (file) => {
+            // 检查去重
+            const isDuplicate = playlist.value.some(song => song.name === file.name);
+            if (isDuplicate) return null;
 
-        if (currentIndex.value === -1 && playlist.value.length > 0) {
-            currentIndex.value = 0;
-            const firstSong = playlist.value[0];
-            if (firstSong) {
-                loadSong(firstSong);
+            const id = crypto.randomUUID();
+            const baseName = getBaseName(file.name);
+
+            // --- 关键匹配逻辑 ---
+            // 尝试去 lrcMap 里找同名的文件
+            let lyricContent = '';
+            const lrcFile = lrcMap.get(baseName);
+            if (lrcFile) {
+                try {
+                    // 异步读取歌词文本
+                    lyricContent = await lrcFile.text();
+                } catch (e) {
+                    console.error(`读取歌词失败: ${lrcFile.name}`, e);
+                }
+            }
+            // --------------------
+
+            const song: Song = {
+                id,
+                name: baseName, // 建议显示名字时不带后缀，比较好看
+                url: URL.createObjectURL(file),
+                duration: 0,
+                lyric: lyricContent // 存入歌词
+            };
+
+            // 存入大文件缓存
+            (window as any)._fileCache[id] = file;
+
+            return song;
+        }));
+
+        // 3. 过滤掉 null (重复的) 并添加到列表
+        const validSongs = processedSongs.filter(s => s !== null) as Song[];
+
+        if (validSongs.length > 0) {
+            playlist.value.push(...validSongs);
+            savePlaylist(); // 保存
+
+            if (currentIndex.value === -1) {
+                currentIndex.value = 0;
+                const firstSong = playlist.value[0];
+                if (firstSong) loadSong(firstSong);
             }
         }
     };
@@ -224,6 +316,23 @@ export const usePlayerStore = defineStore('player', () => {
         }
     };
 
+    // --- 新增：更新指定歌曲的歌词 ---
+    const updateLyric = async (index: number, lyricContent: string) => {
+        const song = playlist.value[index];
+        if (song) {
+            // 1. 更新内存中的 State
+            song.lyric = lyricContent;
+
+            // 2. 触发保存到数据库 (因为 savePlaylist 会读取 state 中的 lyric 字段)
+            await savePlaylist();
+
+            // 3. 特殊处理：如果这首歌正在播放，需要强制触发 LyricStore 更新
+            // (虽然 watch currentSong 通常能监听到，但为了保险起见，如果是修改当前歌曲，
+            //  Vue 的 deep watch 性能消耗大，普通 watch 可能监听不到对象内部属性变化。
+            //  最简单的 hack 是：重新赋值一下 currentSong 引用，或者依赖 lyricStore 监听 lyric 字符串变化)
+        }
+    };
+
     const togglePlay = async (forceState?: boolean) => {
         const shouldPlay = forceState ?? !isPlaying.value;
 
@@ -280,6 +389,7 @@ export const usePlayerStore = defineStore('player', () => {
         playIndex,
         togglePlay,
         nextSong,
-        seek
+        seek,
+        updateLyric
     };
 });
