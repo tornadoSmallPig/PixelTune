@@ -1,0 +1,23 @@
+:root {
+  /* 定义一个变量，方便统一修改 */
+  --pixel-font: 'Fusion Pixel Zh_hans', 'Fusion Pixel', monospace;
+}
+
+body {
+  /* 让整个网页默认都用像素字体 */
+  font-family: var(--pixel-font);
+  
+  /* 优化像素字体的显示效果 */
+  -webkit-font-smoothing: none; /* 关闭抗锯齿，让像素点更锐利 */
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* src/style.css */
+html, body, #app {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* 禁止整个页面的滚动条，交给内部容器处理 */
+  font-family: 'Fusion Pixel Zh_hans';
+}
