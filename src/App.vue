@@ -1,10 +1,26 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
 import PixelPlayer from './components/PixelPlayer.vue';
 import PixelPlaylist from './components/PixelPlayList.vue';
 import PixelLyrics from './components/PixelLyrics.vue';
 
 import { IconList } from '@pixelium/web-vue/icon-pa/es';
+
+// 测试框架（低耦合设计）
+import TestFramework from './tests/components/TestFramework.vue'
+
+// 测试框架状态
+const showTestFramework = ref(false)
+
+// 开发环境下自动显示测试框架
+onMounted(() => {
+  if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_TEST_FRAMEWORK === 'true') {
+    // 延迟显示，确保所有组件初始化完成
+    setTimeout(() => {
+      showTestFramework.value = true
+    }, 2000)
+  }
+})
 
 // 默认逻辑：如果屏幕宽 (>768)，默认展开；否则默认收起
 const isSidebarOpen = ref(window.innerWidth > 768);
@@ -52,6 +68,9 @@ const closeSidebarMobile = () => {
 
     </PxContainer>
   </PxContainer>
+
+  <!-- 测试框架组件（低耦合设计，通过环境变量控制） -->
+  <TestFramework v-if="showTestFramework" />
 </template>
 
 <style scoped>

@@ -60,6 +60,11 @@ const handleLrcSelect = async (e: Event) => {
   }
 };
 
+/**
+ * 处理文件选择事件
+ * 当用户在文件输入框中选择文件后，将选中的文件添加到播放列表中
+ * @param e 文件选择事件对象
+ */
 const handleFileSelect = (e: Event) => {
   const input = e.target as HTMLInputElement;
   if (input.files) {
@@ -67,25 +72,38 @@ const handleFileSelect = (e: Event) => {
   }
 };
 
-// 用于简化模板中的显示逻辑
+/**
+ * 获取播放列表中项目的显示索引
+ * 当前播放项会显示为'▶'，其他项目显示为数字序号
+ * @param {number} index - 歌曲在播放列表中的索引
+ * @returns {string|number} 如果是当前播放项则返回'▶'，否则返回(index + 1)
+ */
 const getDisplayIndex = (index: number) => {
   return index === store.currentIndex && store.isPlaying ? '▶' : (index + 1);
 };
+
 </script>
 
 <template>
   <div class="playlist-card">
     <div class="header">
+      <!-- 标题 -->
       <h3 class="pixel-font">PLAYLIST [{{ store.playlist.length }}]</h3>
+      
       <div class="btn-group">
+        <!-- 添加歌曲按钮 -->
         <PxButton size="small" theme="primary" @click="fileInputRef?.click()">
           <IconMusicSolid :size="16"></IconMusicSolid>
         </PxButton>
+
+        <!-- 添加文件夹按钮 -->
         <PxButton size="small" theme="primary" @click="folderInputRef?.click()">
           <IconFolder :size="16"></IconFolder>
         </PxButton>
 
       </div>
+
+      <!-- 文件选择框 -->
       <input ref="fileInputRef" type="file" multiple accept="audio/*" hidden @change="handleFileSelect">
       <input ref="folderInputRef" type="file" webkitdirectory directory hidden @change="handleFileSelect">
       <input ref="lrcInputRef" type="file" accept=".lrc" hidden @change="handleLrcSelect">
@@ -94,19 +112,27 @@ const getDisplayIndex = (index: number) => {
     <div class="list-container">
       <div v-for="(song, index) in store.playlist" :key="song.id" class="list-item"
         :class="{ active: index === store.currentIndex }" @click="store.playIndex(index)">
+        <!-- 显示序号 -->
         <span class="icon">{{ getDisplayIndex(index) }}. </span>
+        <!-- 显示歌名 -->
         <span class="name">{{ song.name }}</span>
+
+        
         <div class="action-btns">
+          <!-- 添加歌词按钮 -->
           <PxButton class="icon-btn lrc-btn" size="small" theme="primary" :title="song.lyric ? '替换歌词' : '添加歌词'"
             @click.stop="triggerLrcUpload(index)">
             <IconFileImport :size="16" :style="{ opacity: song.lyric ? 1 : 0.4 }" />
           </PxButton>
+
+          <!-- 删除歌词按钮 -->
           <PxButton class="icon-btn delete-btn" size="small" theme="danger" @click.stop="store.removeSong(index)">
             <IconRemoveBox :size="16" />
           </PxButton>
         </div>
       </div>
 
+      <!-- 列表为空时显示提示信息 -->
       <div v-if="store.playlist.length === 0" class="empty-tip">
         DROP FILES HERE
       </div>
